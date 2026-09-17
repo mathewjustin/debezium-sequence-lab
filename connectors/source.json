@@ -1,0 +1,20 @@
+{
+  "name": "debezium-source",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+    "database.hostname": "source",
+    "database.port": "5432",
+    "database.user": "postgres",
+    "database.password": "postgres",
+    "database.dbname": "lab",
+    "topic.prefix": "debezium-sequence-lab",
+    "plugin.name": "pgoutput",
+    "slot.name": "debezium_sequence_lab_slot",
+    "publication.name": "debezium_sequence_lab_publication",
+    "publication.autocreate.mode": "filtered",
+    "table.include.list": "lab.events",
+    "snapshot.mode": "no_data",
+    "tombstones.on.delete": "false"
+  }
+}

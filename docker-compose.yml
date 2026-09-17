@@ -1,0 +1,99 @@
+name: debezium-sequence-lab
+
+x-postgres-environment: &postgres-environment
+  POSTGRES_DB: lab
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+
+x-postgres-healthcheck: &postgres-healthcheck
+  test: ["CMD-SHELL", "pg_isready -U postgres -d lab"]
+  interval: 2s
+  timeout: 3s
+  retries: 30
+
+services:
+  source:
+    image: postgres:16.11-bookworm
+    environment: *postgres-environment
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_replication_slots=10
+      - -c
+      - max_wal_senders=10
+    ports:
+      - "${SOURCE_PORT:-56432}:5432"
+    healthcheck: *postgres-healthcheck
+    volumes:
+      - source-data:/var/lib/postgresql/data
+
+  target:
+    image: postgres:16.11-bookworm
+    environment: *postgres-environment
+    ports:
+      - "${TARGET_PORT:-56433}:5432"
+    healthcheck: *postgres-healthcheck
+    volumes:
+      - target-data:/var/lib/postgresql/data
+
+  kafka:
+    image: quay.io/debezium/kafka:3.6.1.Final
+    environment:
+      CLUSTER_ID: oh-sxaDRTcyAr6pFRbXyzA
+      NODE_ID: 1
+      NODE_ROLE: combined
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx256m
+    healthcheck:
+      test: ["CMD-SHELL", "/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list >/dev/null"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+    volumes:
+      - kafka-data:/kafka/data
+
+  connect:
+    image: quay.io/debezium/connect:3.6.1.Final
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: debezium-sequence-lab
+      CONFIG_STORAGE_TOPIC: debezium-sequence-lab-configs
+      OFFSET_STORAGE_TOPIC: debezium-sequence-lab-offsets
+      STATUS_STORAGE_TOPIC: debezium-sequence-lab-statuses
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      KEY_CONVERTER_SCHEMAS_ENABLE: "true"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "true"
+      CONNECT_HEAP_OPTS: -Xms256m -Xmx512m
+    ports:
+      - "${CONNECT_PORT:-58083}:8083"
+    depends_on:
+      source:
+        condition: service_healthy
+      target:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:8083/connectors >/dev/null"]
+      interval: 3s
+      timeout: 5s
+      retries: 60
+    volumes:
+      - ./connectors:/config:ro
+
+volumes:
+  source-data:
+  target-data:
+  kafka-data:

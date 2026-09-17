@@ -1,0 +1,19 @@
+{
+  "name": "debezium-sink",
+  "config": {
+    "connector.class": "io.debezium.connector.jdbc.JdbcSinkConnector",
+    "tasks.max": "1",
+    "topics": "debezium-sequence-lab.lab.events",
+    "connection.url": "jdbc:postgresql://target:5432/lab",
+    "connection.username": "postgres",
+    "connection.password": "postgres",
+    "insert.mode": "upsert",
+    "delete.enabled": "true",
+    "primary.key.mode": "record_key",
+    "schema.evolution": "none",
+    "collection.name.format": "lab.events",
+    "quote.identifiers": "false",
+    "use.time.zone": "UTC",
+    "consumer.override.auto.offset.reset": "earliest"
+  }
+}
