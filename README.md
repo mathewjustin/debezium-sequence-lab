@@ -4,6 +4,11 @@ A small Docker Compose lab that tests whether Debezium keeps an explicitly
 created PostgreSQL sequence synchronized while replicating row changes to
 another PostgreSQL database.
 
+**Start reading:** [Debezium architecture: from reader to writer](ARCHITECTURE.md)
+explains the components, deployment, event flow, and where the proposed
+sequence-advancement feature belongs. It uses a vertical diagram and short
+sections for reading alongside the code.
+
 **Verified result:** Debezium 3.6.1.Final replicates the 500 new rows and their
 explicit IDs, but it does not advance the target sequence. The first
 target-side default insert collides on `id=1001`.
